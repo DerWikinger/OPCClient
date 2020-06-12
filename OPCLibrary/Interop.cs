@@ -146,7 +146,9 @@
             [DllImport("ole32.dll")]
             private static extern void CoCreateInstanceEx(ref Guid clsid,
                                                           [MarshalAs(UnmanagedType.IUnknown)] object punkOuter,
-                                                          uint dwClsCtx, [In] ref COSERVERINFO pServerInfo, uint dwCount,
+                                                          uint dwClsCtx, 
+                                                          [In] ref COSERVERINFO pServerInfo, 
+                                                          uint dwCount,
                                                           [In, Out] MULTI_QI[] pResults);
 
             [DllImport("Kernel32.dll")]

@@ -79,8 +79,9 @@ namespace OPCLibrary
         public static List<OPCServer> BrowseServers(string hostname)
         {
             List<OPCServer> servers = new List<OPCServer>();
-            Guid clsidcat = new Guid("{63D5F432-CFE4-11D1-B2C8-0060083BA1FB}");
-            Guid clsidenum = new Guid("{13486D51-4821-11D2-A494-3CB306C10000}");
+ 
+            Guid clsidcat = new Guid("{63D5F432-CFE4-11D1-B2C8-0060083BA1FB}"); //OPC Data Access Servers Version 2.0
+            Guid clsidenum = new Guid("{13486D51-4821-11D2-A494-3CB306C10000}"); //OPCEnum.exe
             try
             {
                 IOPCServerList2 serverList = (IOPCServerList2)DZ.Opc.Integration.Internal.Interop.CreateInstance(clsidenum, hostname);
@@ -118,6 +119,17 @@ namespace OPCLibrary
                 Console.Out.Write(ex.Message);
             }
             return servers;
+        }
+
+        public static OPCServer FindServerByID(string progID, string hostname)
+        {
+
+            foreach(OPCServer srv in OPCServer.BrowseServers(hostname))
+            {
+                if (srv.ProgId.Contains(progID)) return srv;
+            }
+
+            return null;
         }
     }
 }

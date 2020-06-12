@@ -28,9 +28,15 @@ namespace OPCLibraryTest
             server.ProgId = "ProgID";
             Assert.AreEqual("ProgID", server.ProgId);
 
-            List<OPCServer> servers = OPCServer.BrowseServers("127.0.0.1");
+            string hostname = "127.0.0.1";
+            List<OPCServer> servers = OPCServer.BrowseServers(hostname);
             Assert.AreNotEqual(null, servers);
             Assert.AreNotEqual(0, servers.Count);
+
+            string progID = "InSAT.ModbusOPCServer.DA";
+            server = OPCServer.FindServerByID(progID, hostname);
+            Assert.AreNotEqual(null, server);
+            Assert.AreEqual(progID, server.ProgId);
         }
 
         [TestMethod]
@@ -44,7 +50,7 @@ namespace OPCLibraryTest
         [TestMethod]
         public void TestServerInfo()
         {
-            OPCLibrary.DZ.Opc.Integration.Internal.ServerInfo sInfo = new OPCLibrary.DZ.Opc.Integration.Internal.ServerInfo();
+            ServerInfo sInfo = new ServerInfo();
             Assert.AreNotEqual(null, sInfo);
             COSERVERINFO info = sInfo.Allocate("localhost", new System.Net.NetworkCredential());
             Assert.AreNotEqual(null, info); 
