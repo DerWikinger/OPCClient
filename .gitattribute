@@ -1,0 +1,27 @@
+* text=auto
+
+# force text
+*.html text
+*.css text
+*.js text
+*.php text
+
+# Windows files (need CRLF)
+*.sln text eol=crlf
+*.bat eol=crlf
+
+# Unix files (need LF)
+*.sh eol=lf
+
+# binary files
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.png binary
+*.mp3 binary
+*.mpeg binary
+
+*.html diff=html
+*.php diff=php
+*.css diff=css
+*.cpp diff=cpp

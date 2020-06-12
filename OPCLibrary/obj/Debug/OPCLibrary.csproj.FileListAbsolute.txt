@@ -1,0 +1,7 @@
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\bin\Debug\OPCLibrary.dll
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\bin\Debug\OPCLibrary.pdb
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\obj\Debug\OPCLibrary.csprojAssemblyReference.cache
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\obj\Debug\Interop.OpcEnumLib.dll
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\obj\Debug\OPCLibrary.csproj.ResolveComReference.cache
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\obj\Debug\OPCLibrary.dll
+C:\Users\DerWi\source\repos\OPCClient\OPCLibrary\obj\Debug\OPCLibrary.pdb
