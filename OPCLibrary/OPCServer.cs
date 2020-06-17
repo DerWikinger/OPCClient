@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using OpcEnumLib;
 using opcprox;
+using System.Runtime.InteropServices;
+
 
 namespace OPCLibrary
 {
@@ -59,6 +61,69 @@ namespace OPCLibrary
         {
             get { return enabled; }
             set { enabled = value; }
+        }
+
+        public List<OPCItem> GetItems()
+        {
+            List<OPCItem> items = new List<OPCItem>();
+            Guid guid = new Guid("{39227004-A18F-4b57-8B0A-5235670F4468}");
+            IOPCBrowseServerAddressSpace pBrowse = (IOPCBrowseServerAddressSpace)DZ.Opc.Integration.Internal.Interop.CreateInstance(Guid, HostName);
+            GetItemChildren(items, "", pBrowse);
+            return items;
+        }
+
+        private void GetItemChildren(List<OPCItem> items, string szNameFilter, IOPCBrowseServerAddressSpace pParent, OPCItem parentItem = null)
+        {
+            opcprox.IEnumString pEnum;
+            uint cnt;
+            string strName;
+            string szItemID;
+            try
+            {
+                pParent.BrowseOPCItemIDs(tagOPCBROWSETYPE.OPC_LEAF, szNameFilter, (ushort)VarEnum.VT_EMPTY, 0, out pEnum);
+                pEnum.RemoteNext(1, out strName, out cnt);
+                int nLeavesCount = 0;
+                while (cnt != 0)
+                {
+                    pParent.GetItemID(strName, out szItemID); // получает полный идентификатор тега
+                    items.Add(
+                        new OPCItem()
+                        {
+                            Parent = parentItem,
+                            ItemName = strName,
+                            ItemType = OPCItemType.LEAF,
+                            ItemID = szItemID
+                        }
+                    );                    
+                    pEnum.RemoteNext(1, out strName, out cnt);
+                    nLeavesCount++;
+                }
+                pParent.BrowseOPCItemIDs(tagOPCBROWSETYPE.OPC_BRANCH, szNameFilter, (ushort)VarEnum.VT_EMPTY, 0, out pEnum);
+                pEnum.RemoteNext(1, out strName, out cnt);
+                int nBranchesCount = 0;
+                while (cnt != 0)
+                {
+                    pParent.GetItemID(strName, out szItemID);
+                    OPCItem item = new OPCItem()
+                    {
+                        Parent = parentItem,
+                        ItemName = strName,
+                        ItemType = OPCItemType.BRANCH,
+                        ItemID = szItemID
+                    };
+                    items.Add(item);
+                    pParent.ChangeBrowsePosition(tagOPCBROWSEDIRECTION.OPC_BROWSE_TO, szItemID);
+                    GetItemChildren(items, "", pParent, item);
+                    pParent.ChangeBrowsePosition(tagOPCBROWSEDIRECTION.OPC_BROWSE_UP, szItemID);
+                    pEnum.RemoteNext(1, out strName, out cnt);
+                    nBranchesCount++;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Console.Out.Write(ex.Message);
+            }
+
         }
 
         public void Connect()
@@ -121,12 +186,13 @@ namespace OPCLibrary
             return servers;
         }
 
-        public static OPCServer FindServerByID(string progID, string hostname)
+
+        public static OPCServer FindServerByProgID(string progID, string hostname)
         {
 
             foreach(OPCServer srv in OPCServer.BrowseServers(hostname))
             {
-                if (srv.ProgId.Contains(progID)) return srv;
+                if (srv.ProgId.ToUpper().Contains(progID.ToUpper())) return srv;
             }
 
             return null;

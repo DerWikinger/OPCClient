@@ -33,10 +33,15 @@ namespace OPCLibraryTest
             Assert.AreNotEqual(null, servers);
             Assert.AreNotEqual(0, servers.Count);
 
-            string progID = "InSAT.ModbusOPCServer.DA";
-            server = OPCServer.FindServerByID(progID, hostname);
+            string progID = "Insat";
+            server = OPCServer.FindServerByProgID(progID, hostname);
             Assert.AreNotEqual(null, server);
-            Assert.AreEqual(progID, server.ProgId);
+
+            server.Connect();
+            List<OPCItem> arr = server.GetItems();
+            Assert.AreNotEqual(null, arr);
+            Assert.AreEqual(27, arr.Count); // 27 items are defiened in OPC Server config
+            server.Disconnect();
         }
 
         [TestMethod]
