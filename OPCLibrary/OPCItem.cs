@@ -54,9 +54,22 @@ namespace OPCLibrary
             get { return enabled; }
         }
 
-        public object DataValue;
-        public _FILETIME TimeStamp;
-        public ushort wQuality;
+        private string dataValue;
+        public string Value
+        {
+            get { return dataValue; }
+            set { dataValue = value; }
+        }
+
+        public string TimeStamp
+        { get; set; }
+
+        private ushort wQuality;
+        public string Quality
+        {
+            get { return OPCLibrary.Converter.GetQualityString(wQuality); }
+            set { wQuality = (ushort)Int16.Parse(value); }
+        }
 
 
         private uint m_hItem = 0;

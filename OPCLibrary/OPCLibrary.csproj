@@ -45,7 +45,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Converter.cs" />
     <Compile Include="Interop.cs" />
+    <Compile Include="OPCGroup.cs" />
     <Compile Include="OPCItem.cs" />
     <Compile Include="OPCServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
