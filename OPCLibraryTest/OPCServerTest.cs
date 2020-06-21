@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Threading;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OPCLibrary;
-using OPCLibrary.DZ.Opc.Integration.Internal;
+using OPCLibrary.Internal;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 
 
@@ -42,15 +44,13 @@ namespace OPCLibraryTest
             List<OPCItem> arr = server.GetItems(true);
             Assert.AreNotEqual(null, arr);
             Assert.AreEqual(27, arr.Count); // 27 items are defiened in OPC Server config
-            List<OPCItem> items = new List<OPCItem>(arr.FindAll(i => i.ItemType == OPCItemType.LEAF));
-            server.SyncRead(items);
             server.Disconnect();
         }
 
         [TestMethod]
         public void TestInterop()
         {
-            string message = OPCLibrary.DZ.Opc.Integration.Internal.Interop.GetSystemMessage(0);
+            string message = OPCLibrary.Internal.Interop.GetSystemMessage(0);
             Assert.AreNotEqual(null, message);
             Assert.AreNotEqual("", message);
         }
@@ -88,5 +88,82 @@ namespace OPCLibraryTest
             Assert.AreEqual("VT_EMPTY", OPCLibrary.Converter.GetVTString(0));
         }
 
+        [TestMethod]
+        public void TestOPCGroup()
+        {
+            string progID = "Insat";
+            OPCServer server = OPCServer.FindServerByProgID(progID, "localhost");
+            server.Connect();
+            List<OPCItem> items = server.GetItems();
+            var opcBranches = from item in items
+                              where item.ItemType == OPCItemType.BRANCH
+                              let leaves = from elem in items
+                                           where elem.ItemType == OPCItemType.LEAF
+                                           where elem.Parent != null && elem.Parent.ItemName == item.ItemName
+                                           select elem
+                              where leaves.Count() > 0
+                              select item;
+            foreach(OPCItem branch in opcBranches)
+            {
+                string groupName = branch.ItemID;
+                if (groupName.Contains("МВ110")) continue;
+                var opcItems = from item in items
+                               where item.ItemType == OPCItemType.LEAF
+                               where item.Parent != null
+                               where item.Parent.ItemName == branch.ItemName
+                               select item;
+                List<OPCItem> list = new List<OPCItem>(opcItems);                
+                OPCGroup group = new OPCGroup(name: groupName, items: list, updateRate: 100);
+                group.RegInServer(server);
+                Assert.AreEqual(groupName, group.Name);
+                Assert.AreSame(list, group.Items);
+                try
+                {
+                    group.SyncRead();
+                }
+                catch(ServerException ex)
+                {
+                    string msg;
+                    //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
+                    server.Server.GetErrorString(ex.HResult, 2, out msg);
+                    //Показываем сообщение ошибки
+                    Console.Out.WriteLine(msg, "Ошибка");
+                }
+                List<string> results1 = new List<string>(group.Items.Select(i => i.TimeStamp ?? "1"));
+                //group.RemoveFromServer();
+                System.Threading.Thread.Sleep(1000);
+                //group.RegInServer();
+                try
+                {
+                    group.SyncRead();
+                }
+                catch (ServerException ex)
+                {
+                    string msg;
+                    //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
+                    server.Server.GetErrorString(ex.HResult, 2, out msg);
+                    //Показываем сообщение ошибки
+                    Console.Out.WriteLine(msg, "Ошибка");
+                }
+                List<string> results2 = new List<string>(group.Items.Select(i => i.TimeStamp ?? "2"));
+                Assert.AreNotSame(results1, results2);
+                Assert.AreEqual(results1.Count, results2.Count);
+                Assert.AreNotEqual(results1[1], results2[1]);
+                group.RemoveFromServer();
+                try
+                {
+                    group.SyncRead();
+                }
+                catch (ServerException ex)
+                {
+                    string msg;
+                    //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
+                    server.Server.GetErrorString(ex.HResult, 2, out msg);
+                    //Показываем сообщение ошибки
+                    Console.Out.WriteLine(msg, "Ошибка");
+                }               
+            }
+            server.Disconnect();      
+        }
     }
 }

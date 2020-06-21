@@ -54,8 +54,8 @@ namespace OPCLibrary
             get { return enabled; }
         }
 
-        private string dataValue;
-        public string Value
+        private object dataValue;
+        public object Value
         {
             get { return dataValue; }
             set { dataValue = value; }

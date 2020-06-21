@@ -4,7 +4,7 @@
     using System.Net;
     using System.Runtime.InteropServices;
 
-    namespace DZ.Opc.Integration.Internal
+    namespace Internal
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         public struct COSERVERINFO
