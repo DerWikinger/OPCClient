@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 using OpcEnumLib;
 using opcprox;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace OPCLibrary
 {
     public class OPCGroup
     {
         private IEnumerable<OPCItem> items;
-
         public IEnumerable<OPCItem> Items
         { 
             get { return items; }
@@ -29,7 +29,7 @@ namespace OPCLibrary
         public uint UpdateRate
         {
             get { return fUpdateRate; }
-            private set { fUpdateRate = value; }
+            set { fUpdateRate = value; }
         }
 
         float fDeadband = 0;
@@ -39,25 +39,32 @@ namespace OPCLibrary
             set { fDeadband = value; }
         }
 
+        public uint GroupID
+        { get; private set; }
+
         //private OPCServer server = null;
-        private uint m_hGroup = 0;
+        private static uint m_hGroup = 0;
         private uint[] m_hItems = null;
         int[] m_hRes;
         private int m_dwReadCount = 0;
         List<uint> indecies = new List<uint>();
         IOPCItemMgt m_pItemMgt = null;
-        IOPCSyncIO m_pSyncIO = null;
+        //IOPCSyncIO m_pSyncIO = null;
+        
+        public IConnectionPoint m_pDataCallback; // Точка подключения к событиям сервера
+        int m_dwCookie; // Описатель подписки к событиям сервера
 
-        public OPCGroup(string name, IEnumerable<OPCItem> items, uint updateRate = 1000)
+        public OPCGroup(string name, IEnumerable<OPCItem> items)
         {
             this.items = items;
             Name = name;
             Enabled = true;
-            this.fUpdateRate = updateRate;
+            GroupID = ++m_hGroup;
         }
 
         ~OPCGroup()
         {
+            m_hGroup--;
         }
 
         public void RegInServer(OPCServer server)
@@ -93,6 +100,42 @@ namespace OPCLibrary
                 //Показываем сообщение ошибки
                 Console.Out.WriteLine(msg, "Ошибка");
             }            
+        }
+
+        public void AdviseOnServer(OPCServer server, OPCItem item)
+        {
+            if (m_pItemMgt == null) return;
+            try
+            {
+                IConnectionPointContainer pCPC;
+                pCPC = (IConnectionPointContainer)m_pItemMgt;
+                Guid riid = typeof(IOPCDataCallback).GUID;
+                //IEnumConnectionPoints ppEnum;
+                //pCPC.EnumConnectionPoints(out ppEnum);
+                pCPC.FindConnectionPoint(ref riid, out m_pDataCallback);
+
+                //Если ранее была активирована подписка, то отменить ее
+                if (m_dwCookie != 0) m_pDataCallback.Unadvise(m_dwCookie);
+
+                DataCallback m_pSink = new DataCallback(item);
+                m_pDataCallback.Advise(m_pSink, out m_dwCookie);
+            }
+            catch(COMException ex)
+            {
+                string msg;
+                //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
+                server.Server.GetErrorString(ex.HResult, 2, out msg);
+                //Показываем сообщение ошибки
+                Console.Out.WriteLine(msg, "Ошибка");
+            }
+            catch (ServerException ex)
+            {
+                string msg;
+                //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
+                server.Server.GetErrorString(ex.HResult, 2, out msg);
+                //Показываем сообщение ошибки
+                Console.Out.WriteLine(msg, "Ошибка");
+            }
         }
 
         private void RegItemsInServer()
@@ -176,12 +219,17 @@ namespace OPCLibrary
             //if (!this.server.IsConnected) this.server.Connect();
             //if(m_pItemMgt != null) RemoveFromServer();
 
+            IOPCSyncIO m_pSyncIO = null;
+
             int iRet = 0;
             try
             {
-                if (null == m_pSyncIO)
+                m_pSyncIO = (IOPCSyncIO)m_pItemMgt;
+                //При наличии подписки событий группы на сервере удаляем её
+                if (m_dwCookie != 0)
                 {
-                    m_pSyncIO = (IOPCSyncIO)m_pItemMgt;
+                    m_pDataCallback.Unadvise(m_dwCookie);
+                    m_dwCookie = 0;
                 }
             }
             catch (ApplicationException ex)
@@ -204,13 +252,14 @@ namespace OPCLibrary
             }
             try
             {
+                OPCItem[] items = Items.ToArray();
                 tagOPCITEMSTATE[] itemSates = new tagOPCITEMSTATE[m_dwReadCount];
                 Type type = typeof(tagOPCITEMSTATE);
-                Marshal.Copy(iptrErrors, m_hRes, 0, 1);
+                Marshal.Copy(iptrErrors, m_hRes, 0, m_dwReadCount);
 
-                for (int i = 0; i < m_dwReadCount; i++)
+                for (int i = 0; i < items.Length; i++)
                 {
-                    OPCItem item = ((List<OPCItem>)Items)[i];
+                    OPCItem item = items[i];
                     itemSates[i] = (tagOPCITEMSTATE)Marshal.PtrToStructure(iptrItemValue + i * Marshal.SizeOf(type), type);
                     uint index = indecies[i];
                     item.Value = itemSates[i].vDataValue != null ? itemSates[i].vDataValue.ToString() : null;
@@ -236,6 +285,29 @@ namespace OPCLibrary
                 Marshal.FreeCoTaskMem(iptrItemValue);
                 Marshal.FreeCoTaskMem(iptrErrors);
             }
+            return iRet;
+        }
+
+        public int ASyncRead()
+        {
+            IOPCAsyncIO2 m_pASyncIO = null;
+
+            int iRet = 0;
+            try
+            {
+                //IntPtr iptrItemValue = IntPtr.Zero;
+                IntPtr iptrErrors = IntPtr.Zero;
+                uint dwTransactionID = GroupID;
+                uint pdwCancelID;
+                m_pASyncIO = (IOPCAsyncIO2)m_pItemMgt;
+                m_pASyncIO.Read((uint)m_dwReadCount, ref m_hItems[0], dwTransactionID, out pdwCancelID, out iptrErrors);
+                Marshal.Copy(iptrErrors, m_hRes, 0, m_dwReadCount);
+            }
+            catch (ApplicationException ex)
+            {
+                Console.Out.WriteLine(ex.Message);
+            }
+
             return iRet;
         }
     }

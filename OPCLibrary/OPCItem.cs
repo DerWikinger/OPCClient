@@ -11,8 +11,15 @@ namespace OPCLibrary
     public enum OPCItemType { LEAF, BRANCH };
     public class OPCItem
     {
-        private OPCItem parent;
-        
+        public delegate void SetItemCallback(object value);
+        SetItemCallback m_dlg;
+
+        public SetItemCallback DataCallback
+        { 
+            get { return m_dlg; } 
+        }
+
+        private OPCItem parent;        
         public OPCItem Parent
         {
             get { return parent; }
@@ -71,7 +78,6 @@ namespace OPCLibrary
             set { wQuality = (ushort)Int16.Parse(value); }
         }
 
-
         private uint m_hItem = 0;
         public uint ItemHandle
         {
@@ -81,7 +87,8 @@ namespace OPCLibrary
 
         public OPCItem(OPCItem parent = null)
         { 
-            Parent = parent; 
+            Parent = parent;
+            m_dlg = new SetItemCallback(SetItemValue);
         }
 
         public tagOPCITEMDEF GetItemDef()
@@ -95,6 +102,11 @@ namespace OPCLibrary
             itemDef.dwBlobSize = 0;
             itemDef.pBlob = IntPtr.Zero;
             return itemDef;
+        }
+
+        public void SetItemValue(object value)
+        {
+            Value = value;
         }
 
         public override string ToString()

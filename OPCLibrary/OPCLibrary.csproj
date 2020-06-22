@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Converter.cs" />
+    <Compile Include="DataCallback.cs" />
     <Compile Include="Interop.cs" />
     <Compile Include="OPCGroup.cs" />
     <Compile Include="OPCItem.cs" />

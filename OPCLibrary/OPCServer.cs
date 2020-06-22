@@ -95,8 +95,8 @@ namespace OPCLibrary
             IntPtr ppvtDataTypes = IntPtr.Zero;
             IntPtr ppErrors = IntPtr.Zero;
             //properties.LookupItemIDs(szItemID, 1, ref pdwPropertyIDs, ppszNewItemIDs, ppErrors);
-            //properties.QueryAvailableProperties(szItemID, out pdwCount, ppPropertyIDs, ppDescriptions, ppvtDataTypes);
-            //properties.GetItemProperties(szItemID, 1, ref pdwPropertyIDs, ppvData, ppErrors);
+            //properties.QueryAvailableProperties(szItemID, out pdwCount, out ppPropertyIDs, out ppDescriptions, out ppvtDataTypes);
+            //properties.GetItemProperties(szItemID, 1, ref pdwPropertyIDs, out ppvData, out ppErrors);
         }
 
         private void GetItemChildren(List<OPCItem> items, string szNameFilter, IOPCBrowseServerAddressSpace pParent, OPCItem parentItem = null)
