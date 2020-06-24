@@ -6,6 +6,7 @@ using OPCLibrary;
 using OPCLibrary.Internal;
 using System.Runtime.InteropServices;
 using System.Linq;
+using opcprox;
 
 
 
@@ -42,6 +43,14 @@ namespace OPCLibraryTest
 
             server.Connect();
             List<OPCItem> arr = server.GetItems(true);
+            string itemID = "PN_SIMULATOR.PD_SIMULATOR.Sin";
+            var item = from elem in arr
+                       where elem.ItemID == itemID
+                       select elem;
+            List < PropertyData > list = server.GetItemProperties(item.ToArray()[0].ItemID);
+            Assert.AreEqual(1, list[0].ID);
+            Assert.AreEqual("Item Canonical DataType", list[0].Name);
+            Assert.AreEqual("4", list[0].Value.ToString());
             Assert.AreNotEqual(null, arr);
             Assert.AreEqual(27, arr.Count); // 27 items are defiened in OPC Server config
             server.Disconnect();
@@ -86,6 +95,40 @@ namespace OPCLibraryTest
             Assert.AreEqual("Unknown", OPCLibrary.Converter.GetQualityString(0xFF));
 
             Assert.AreEqual("VT_EMPTY", OPCLibrary.Converter.GetVTString(0));
+
+            float f = 1;
+            IntPtr pF = Marshal.AllocCoTaskMem(4);
+            Marshal.Copy(new float[1] { f }, 0, pF, 1);
+            int iValue = Marshal.ReadInt32(pF);
+            Marshal.FreeCoTaskMem(pF);
+
+            Assert.AreEqual(char.Parse("1"), Converter.GetPropertyValue(16, 1));
+            Assert.AreEqual(short.Parse("1"), Converter.GetPropertyValue(2, 1));
+            Assert.AreEqual(float.Parse("1"), Converter.GetPropertyValue(4, iValue));
+            Assert.AreEqual(1, Converter.GetPropertyValue(3, 1));
+            Assert.AreEqual(long.Parse("1"), Converter.GetPropertyValue(20, 1));
+            Assert.AreEqual(0, Converter.GetPropertyValue(999, 1));
+
+            DateTime dt = DateTime.Now;
+            long vt = dt.ToFileTime();
+            uint ht = (uint)(vt >> 32);
+            uint lt = (uint)(vt - ((long)ht << 32));
+            _FILETIME ft = new _FILETIME() { dwHighDateTime = ht, dwLowDateTime = lt };
+
+            Assert.AreEqual(dt.ToString(), Converter.GetFTSting(ft));
+
+            Assert.AreEqual(typeof(char), Converter.GetVTType(16));
+            Assert.AreEqual(typeof(string), Converter.GetVTType(8));
+            Assert.AreEqual(typeof(short), Converter.GetVTType(2));
+            Assert.AreEqual(typeof(float), Converter.GetVTType(4));
+            Assert.AreEqual(typeof(int), Converter.GetVTType(3));
+            Assert.AreEqual(typeof(long), Converter.GetVTType(20));
+
+            Assert.AreEqual(sizeof(char), Converter.GetVTSize(16));
+            Assert.AreEqual(sizeof(short), Converter.GetVTSize(2));
+            Assert.AreEqual(sizeof(float), Converter.GetVTSize(4));
+            Assert.AreEqual(sizeof(int), Converter.GetVTSize(3));
+            Assert.AreEqual(sizeof(long), Converter.GetVTSize(20));
         }
 
         [TestMethod]

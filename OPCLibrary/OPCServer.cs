@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using OpcEnumLib;
+using System.Linq;
 using opcprox;
 using System.Runtime.InteropServices;
 using System.Linq;
-
+using System.Reflection;
 
 namespace OPCLibrary
 {
@@ -81,22 +82,118 @@ namespace OPCLibrary
             GetItemChildren(opcItems, "", pBrowse);
             return opcItems;
         }
-        
-        private void GetItemProperties(string szItemID)
+
+        public List<PropertyData> GetItemProperties(string szItemID)
         {
             IOPCItemProperties properties = (IOPCItemProperties)m_pOPCServer;
-            //uint pdwPropertyIDs = 0;
             uint pdwCount = 0;
             IntPtr ppvData = IntPtr.Zero;
             IntPtr ppPropertyIDs = IntPtr.Zero;
-            IntPtr ppszNewItemIDs = IntPtr.Zero;
-            uint pdwPropertyIDs = 0;
             IntPtr ppDescriptions = IntPtr.Zero;
             IntPtr ppvtDataTypes = IntPtr.Zero;
             IntPtr ppErrors = IntPtr.Zero;
-            //properties.LookupItemIDs(szItemID, 1, ref pdwPropertyIDs, ppszNewItemIDs, ppErrors);
-            //properties.QueryAvailableProperties(szItemID, out pdwCount, out ppPropertyIDs, out ppDescriptions, out ppvtDataTypes);
-            //properties.GetItemProperties(szItemID, 1, ref pdwPropertyIDs, out ppvData, out ppErrors);
+
+            properties.QueryAvailableProperties(szItemID, out pdwCount, out ppPropertyIDs, out ppDescriptions, out ppvtDataTypes);
+
+            int[] propertiesIDs = new int[pdwCount];
+            Marshal.Copy(ppPropertyIDs, propertiesIDs, 0, (int)pdwCount);
+            IntPtr pdwPropertyIDs = Marshal.AllocCoTaskMem((int)pdwCount * sizeof(int));
+            Marshal.Copy(propertiesIDs, 0, pdwPropertyIDs, (int)pdwCount);
+
+            IntPtr[] pDescriptions = new IntPtr[pdwCount];
+            Marshal.Copy(ppDescriptions, pDescriptions, 0, (int)pdwCount);
+            string[] descriptions = new string[pdwCount];
+            for (int i = 0; i < pdwCount; i++)
+            {
+                string description;
+                int length = 0;
+                description = Marshal.PtrToStringAuto(pDescriptions[i]);
+                length += description.Length;
+                descriptions[i] = description;
+                Marshal.FreeCoTaskMem(pDescriptions[i]);
+            }
+
+            short[] propertyTypes = new short[pdwCount];
+            Marshal.Copy(ppvtDataTypes, propertyTypes, 0, (int)pdwCount);
+
+            var strPropertyTypes = from type in propertyTypes
+                                   let sType = Converter.GetVTString((ushort)type)
+                                   let typeSize = Converter.GetVTSize((ushort)type)
+                                   select sType + " : " + typeSize;
+            string[] list = strPropertyTypes.ToArray();
+
+            properties.GetItemProperties(szItemID, pdwCount, pdwPropertyIDs, out ppvData, out ppErrors);
+
+            List<PropertyData> pValues = new List<PropertyData>();
+            int start = 0;
+            short vt;
+            for (int i = 0; i < pdwCount; i++)
+            {
+                int propertyID = propertiesIDs[i];
+                ulong value = (ulong)Marshal.ReadInt64(ppvData + start * sizeof(ulong));
+                int sz = Converter.GetVTSize((ushort)value);
+                vt = propertyTypes[i];
+                if (vt == 8)
+                {
+                    start++;
+                    IntPtr[] strPtr = new IntPtr[1];
+                    Marshal.Copy(ppvData + start * sizeof(long), strPtr, 0, 1);
+                    string val = Marshal.PtrToStringUni(strPtr[0]);
+                    pValues.Add(new PropertyData() { ID = propertyID, Name = descriptions[i], Value = val });
+                    start++;
+                }
+                else if (vt == 8197)
+                {
+                    start++;
+                    IntPtr[] strPtr = new IntPtr[1];
+                    Marshal.Copy(ppvData + start * sizeof(long), strPtr, 0, 1);
+                    string val = Marshal.PtrToStringUni(strPtr[0]);
+                    pValues.Add(new PropertyData() { ID = propertyID, Name = descriptions[i], Value = val });
+                    start++;
+                } else if(vt == 4) {
+                    start++;
+                    value = (ulong)Marshal.ReadInt64(ppvData + start * sizeof(ulong));
+                    object obj = Converter.GetPropertyValue(vt, value);
+                    pValues.Add(new PropertyData() { ID = propertyID, Name = descriptions[i], Value = obj });
+                    start++;
+                } else if(vt == 7) {
+                    // Пока не разобрался с конвертированием данных в формат даты
+                    // поэтому присваивается текущее значение даты и времени
+                    start++;
+                    IntPtr pDate = ppvData + start * sizeof(ulong);
+                    Type type = typeof(DateTime);
+
+                    long lValue = Marshal.ReadInt64(pDate);
+
+                    uint lt = (uint)Marshal.ReadInt32(pDate, 4);
+                    uint ht = (uint)Marshal.ReadInt32(pDate, 0);
+
+                    lValue = ((long)ht << 32) + lt;
+                    //DateTime ft = (DateTime)Marshal.PtrToStructure(pDate, type);
+                    
+                    _FILETIME ft = new _FILETIME() { dwHighDateTime = ht, dwLowDateTime = lt };
+                    //DateTime dt = DateTime.FromBinary(lValue);
+                    //string s = Converter.GetFTSting(ft);
+                    //DateTime dt = new DateTime(lValue);
+                    string strDate = DateTime.Now.ToString();
+                    pValues.Add(new PropertyData() { ID = propertyID, Name = descriptions[i], Value = strDate });
+                    //Marshal.FreeCoTaskMem(pDate);
+                    start++;
+                } else {
+                    start++;
+                    value = (ulong)Marshal.ReadInt64(ppvData + start * sizeof(ulong));
+                    pValues.Add(new PropertyData() { ID = propertyID, Name = descriptions[i], Value = value });
+                    start++;
+                }
+            }
+
+            Marshal.FreeCoTaskMem(ppDescriptions);
+            Marshal.FreeCoTaskMem(ppPropertyIDs);
+            Marshal.FreeCoTaskMem(ppvtDataTypes);
+            Marshal.FreeCoTaskMem(ppvData);
+            Marshal.FreeCoTaskMem(ppErrors);
+
+            return pValues;
         }
 
         private void GetItemChildren(List<OPCItem> items, string szNameFilter, IOPCBrowseServerAddressSpace pParent, OPCItem parentItem = null)
@@ -105,7 +202,6 @@ namespace OPCLibrary
             uint cnt;
             string strName;
             string szItemID;
-            //IOPCItemProperties properties = (IOPCItemProperties)DZ.Opc.Integration.Internal.Interop.CreateInstance(Guid, HostName);
 
             try
             {
@@ -115,6 +211,7 @@ namespace OPCLibrary
                 while (cnt != 0)
                 {
                     pParent.GetItemID(strName, out szItemID); // получает полный идентификатор тега
+                    GetItemProperties(szItemID);
                     items.Add(
                         new OPCItem()
                         {
@@ -242,6 +339,17 @@ namespace OPCLibrary
         public ServerException(int hRes, string msg = "Ошибка OPC сервера") : base(msg)
         {
             base.HResult = hRes;
+        }
+    }
+
+    public struct PropertyData
+    {
+        public int ID;
+        public string Name;
+        public object Value;
+        public string ToString()
+        {
+            return ID + " : " + Name + " = " + Value.ToString();
         }
     }
 }
