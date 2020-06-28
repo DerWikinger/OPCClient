@@ -6,13 +6,14 @@ using opcprox;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.Reflection;
+using System.Net;
 
 namespace OPCLibrary
 {
     public class OPCServer
     {
         public OPCServer()
-        {
+        { 
             IsConnected = false;
             Enabled = true;
         }
@@ -161,6 +162,11 @@ namespace OPCLibrary
                     // поэтому присваивается текущее значение даты и времени
                     start++;
                     IntPtr pDate = ppvData + start * sizeof(ulong);
+                    //IntPtr pp = Marshal.AllocCoTaskMem(8);
+                    //byte[] bb = new byte[8];
+                    //Marshal.GetNativeVariantForObject(pDate, pp);
+                    //Marshal.Copy(pp, bb, 0, 8);
+
                     Type type = typeof(DateTime);
 
                     long lValue = Marshal.ReadInt64(pDate);
@@ -277,15 +283,22 @@ namespace OPCLibrary
             IsConnected = false;
         }
 
-        public static List<OPCServer> BrowseServers(string hostname)
+        public static List<OPCServer> BrowseServers(string hostname, NetworkCredential networkCredential = null, bool DAVersion3 = false)
         {
             List<OPCServer> servers = new List<OPCServer>();
 
-            Guid clsidcat = new Guid("{63D5F432-CFE4-11D1-B2C8-0060083BA1FB}"); //OPC Data Access Servers Version 2.0
+            Guid clsidcat;
+
+            if(DAVersion3) {
+                clsidcat = new Guid("{CC603642-66D7-48F1-B69A-B625E73652D7}"); //OPC Data Access Servers Version 3.
+            } else {
+                clsidcat = new Guid("{63D5F432-CFE4-11D1-B2C8-0060083BA1FB}"); //OPC Data Access Servers Version 2.
+            } 
+
             Guid clsidenum = new Guid("{13486D51-4821-11D2-A494-3CB306C10000}"); //OPCEnum.exe
             try
             {
-                IOPCServerList2 serverList = (IOPCServerList2)Internal.Interop.CreateInstance(clsidenum, hostname);
+                IOPCServerList2 serverList = (IOPCServerList2)Internal.Interop.CreateInstance(clsidenum, hostname, networkCredential);
 
                 IOPCEnumGUID pIOPCEnumGuid;
 

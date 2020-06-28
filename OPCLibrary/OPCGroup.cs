@@ -97,7 +97,6 @@ namespace OPCLibrary
                 string msg;
                 //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
                 server.Server.GetErrorString(ex.HResult, 2, out msg);
-                //Показываем сообщение ошибки
                 Console.Out.WriteLine(msg, "Ошибка");
             }            
         }
@@ -125,7 +124,6 @@ namespace OPCLibrary
                 string msg;
                 //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
                 server.Server.GetErrorString(ex.HResult, 2, out msg);
-                //Показываем сообщение ошибки
                 Console.Out.WriteLine(msg, "Ошибка");
             }
             catch (ServerException ex)
@@ -133,7 +131,6 @@ namespace OPCLibrary
                 string msg;
                 //Запрашиваем у сервера текст ошибки, соответствующий текущему HRESULT 
                 server.Server.GetErrorString(ex.HResult, 2, out msg);
-                //Показываем сообщение ошибки
                 Console.Out.WriteLine(msg, "Ошибка");
             }
         }

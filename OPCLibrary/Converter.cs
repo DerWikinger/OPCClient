@@ -10,7 +10,6 @@ namespace OPCLibrary
 {
     public static class Converter
     {
-
         public static string GetQualityString(ushort usQuality)
         {
             switch (usQuality)
